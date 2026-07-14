@@ -202,7 +202,7 @@
 
 // ---------- 데이터 정의 ----------
 const GENS = [
-  { name: '계산기',   base: 15,        rate: 0.5,   growth: 1.13 },
+  { name: '계산기',   base: 15,        rate: 1,     growth: 1.13 },
   { name: '주판 로봇', base: 120,       rate: 4,     growth: 1.14 },
   { name: '숫자 농장', base: 1.4e3,     rate: 30,    growth: 1.15 },
   { name: '수학 공장', base: 1.8e4,     rate: 220,   growth: 1.16 },
@@ -242,7 +242,6 @@ let S = {
 
 // ---------- 숫자 포맷 ----------
 function fmt(n) {
-  if (n < 10) return (Math.floor(n * 10) / 10).toString();
   return Math.floor(n).toLocaleString('en-US');
 }
 
