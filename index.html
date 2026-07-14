@@ -213,13 +213,15 @@ const GENS = [
 ];
 
 const UPGS = [
-  { name: '튼튼한 손가락', desc: '클릭 파워 x2', cost: 100,   type: 'click', mult: 2 },
+  { name: '튼튼한 손가락', desc: '클릭 파워 x3', cost: 100,   type: 'click', mult: 3 },
   { name: '계산기 오버클럭', desc: '계산기 생산 x2', cost: 500,  type: 'gen', gen: 0, mult: 2 },
+  { name: '기계 손가락 I', desc: '클릭 = 초당 생산의 30% 추가', cost: 3e3, type: 'clickSynergy', pct: 0.3 },
   { name: '에너지 드링크', desc: '클릭 파워 x3', cost: 5e3,   type: 'click', mult: 3 },
   { name: '로봇 기름칠', desc: '주판 로봇 생산 x2', cost: 1e4, type: 'gen', gen: 1, mult: 2 },
   { name: '비료 살포', desc: '숫자 농장 생산 x2', cost: 8e4,  type: 'gen', gen: 2, mult: 2 },
+  { name: '기계 손가락 II', desc: '클릭 = 초당 생산의 60% 추가', cost: 2e5, type: 'clickSynergy', pct: 0.6 },
   { name: '전체 시너지 I', desc: '모든 생산 x2', cost: 5e5,   type: 'all', mult: 2 },
-  { name: '기계 손가락', desc: '클릭 = 초당 생산의 5% 추가', cost: 2e6, type: 'clickSynergy', pct: 0.05 },
+  { name: '기계 손가락 III', desc: '클릭 = 초당 생산의 120% 추가', cost: 2e7, type: 'clickSynergy', pct: 1.2 },
   { name: '공장 자동화', desc: '수학 공장 생산 x3', cost: 8e6, type: 'gen', gen: 3, mult: 3 },
   { name: '양자 얽힘', desc: '양자 연산소 생산 x3', cost: 1e8, type: 'gen', gen: 4, mult: 3 },
   { name: '전체 시너지 II', desc: '모든 생산 x3', cost: 1e9,  type: 'all', mult: 3 },
@@ -268,14 +270,14 @@ function perSec() {
 }
 
 function clickPower() {
-  let p = 1;
+  let mult = 1, synergy = 0;
   for (let u = 0; u < UPGS.length; u++) {
     if (!S.upgs[u]) continue;
     const up = UPGS[u];
-    if (up.type === 'click') p *= up.mult;
-    if (up.type === 'clickSynergy') p += perSec() * up.pct;
+    if (up.type === 'click') mult *= up.mult;
+    if (up.type === 'clickSynergy') synergy += up.pct;
   }
-  return p * prestigeMult();
+  return mult * prestigeMult() + perSec() * synergy;
 }
 
 function genCost(i) {
