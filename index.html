@@ -247,14 +247,9 @@ let S = {
 };
 
 // ---------- 숫자 포맷 ----------
-const UNITS = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
 function fmt(n) {
   if (n < 10) return (Math.floor(n * 10) / 10).toString();
-  if (n < 1e3) return Math.floor(n).toString();
-  const tier = Math.min(Math.floor(Math.log10(n) / 3), UNITS.length - 1);
-  const scaled = n / Math.pow(10, tier * 3);
-  if (tier >= UNITS.length - 1 && scaled >= 1e3) return n.toExponential(2).replace('+', '');
-  return scaled.toFixed(scaled < 10 ? 2 : scaled < 100 ? 1 : 0) + UNITS[tier];
+  return Math.floor(n).toLocaleString('en-US');
 }
 
 // ---------- 계산 ----------
