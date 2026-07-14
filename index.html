@@ -34,16 +34,10 @@
     font-size: clamp(2rem, 8vw, 3.5rem);
     font-weight: bold;
     padding: 30px 0 6px;
-    color: var(--tier-color, var(--text));
-    text-shadow: 0 0 var(--tier-glow, 20px) var(--tier-color, rgba(88, 166, 255, 0.3));
+    color: var(--text);
+    text-shadow: 0 0 20px rgba(88, 166, 255, 0.3);
     user-select: none;
     word-break: break-all;
-    transition: color 0.6s, text-shadow 0.6s;
-  }
-  .big-number.pulse { animation: pulse 1.6s ease-in-out infinite; }
-  @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.04); }
   }
   .per-sec {
     text-align: center;
@@ -395,30 +389,8 @@ $('exportBtn').onclick = () => {
 };
 
 // ---------- 렌더 ----------
-// 티어별 색상 (숫자 커질수록 강렬)
-const TIER_COLORS = [
-  '#e6edf3', // < 1K   흰색
-  '#58a6ff', // K      파랑
-  '#3fb950', // M      초록
-  '#e3b341', // B      금색
-  '#f0883e', // T      주황
-  '#f85149', // Qa     빨강
-  '#ff5cd0', // Qi     핑크
-  '#bc8cff', // Sx     보라
-  '#79f2e6', // Sp+    청록 (네온)
-];
-
-function applyTierStyle() {
-  const el = $('number');
-  const tier = S.num < 1e3 ? 0 : Math.min(Math.floor(Math.log10(S.num) / 3), TIER_COLORS.length - 1);
-  el.style.setProperty('--tier-color', TIER_COLORS[tier]);
-  el.style.setProperty('--tier-glow', (8 + tier * 6) + 'px');
-  el.classList.toggle('pulse', tier >= 5);
-}
-
 function render() {
   $('number').textContent = fmt(S.num);
-  applyTierStyle();
   $('perSec').textContent = fmt(perSec());
   $('clickPower').textContent = fmt(clickPower());
   $('prestigeMult').textContent = S.stars > 0 ? `(x${prestigeMult().toFixed(1)})` : '';
