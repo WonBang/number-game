@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>숫자 키우기</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --dim: #8b949e;
+    --accent: #58a6ff;
+    --gold: #e3b341;
+    --green: #3fb950;
+    --red: #f85149;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  .container { width: 100%; max-width: 640px; }
+
+  .big-number {
+    text-align: center;
+    font-size: clamp(2rem, 8vw, 3.5rem);
+    font-weight: bold;
+    padding: 30px 0 6px;
+    color: var(--tier-color, var(--text));
+    text-shadow: 0 0 var(--tier-glow, 20px) var(--tier-color, rgba(88, 166, 255, 0.3));
+    user-select: none;
+    word-break: break-all;
+    transition: color 0.6s, text-shadow 0.6s;
+  }
+  .big-number.pulse { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+  }
+  .per-sec {
+    text-align: center;
+    color: var(--dim);
+    margin-bottom: 20px;
+    font-size: 0.95rem;
+  }
+  .per-sec .mult { color: var(--gold); }
+
+  #clickBtn {
+    display: block;
+    width: 100%;
+    padding: 22px;
+    font-size: 1.2rem;
+    font-family: inherit;
+    background: linear-gradient(180deg, #1f6feb, #1158c7);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    margin-bottom: 24px;
+    transition: transform 0.05s;
+  }
+  #clickBtn:active { transform: scale(0.97); }
+
+  h2 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--dim);
+    margin: 20px 0 10px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+  }
+
+  .gen, .upg {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, opacity 0.15s;
+    user-select: none;
+  }
+  .gen:hover, .upg:hover { border-color: var(--accent); }
+  .gen.locked, .upg.locked { opacity: 0.45; cursor: not-allowed; }
+  .gen.locked:hover, .upg.locked:hover { border-color: var(--border); }
+  .gen-info .name { font-size: 1rem; }
+  .gen-info .detail { font-size: 0.8rem; color: var(--dim); margin-top: 3px; }
+  .gen-buy { text-align: right; }
+  .gen-buy .cost { color: var(--gold); font-size: 0.9rem; }
+  .gen-buy .owned { color: var(--accent); font-size: 0.8rem; margin-top: 3px; }
+  .upg.bought { opacity: 0.55; cursor: default; border-color: var(--green); }
+  .upg.bought .cost { color: var(--green); }
+  .hidden { display: none !important; }
+
+  #prestigePanel {
+    background: linear-gradient(180deg, #21160a, #1a1206);
+    border: 1px solid var(--gold);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 24px;
+    text-align: center;
+  }
+  #prestigePanel p { font-size: 0.85rem; color: var(--dim); margin-bottom: 10px; }
+  #prestigePanel .gold { color: var(--gold); }
+  #prestigeBtn {
+    padding: 12px 32px;
+    font-family: inherit;
+    font-size: 1rem;
+    background: var(--gold);
+    color: #1a1206;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  #prestigeBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .footer {
+    text-align: center;
+    margin: 30px 0 10px;
+    font-size: 0.75rem;
+    color: var(--dim);
+  }
+  .footer button {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    font-family: inherit;
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin: 0 4px;
+  }
+  .footer button:hover { color: var(--red); border-color: var(--red); }
+
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    max-width: 90vw;
+    text-align: center;
+  }
+  #toast.show { opacity: 1; }
+
+  .float-num {
+    position: fixed;
+    color: var(--accent);
+    font-weight: bold;
+    pointer-events: none;
+    animation: floatUp 0.8s ease-out forwards;
+    z-index: 10;
+  }
+  @keyframes floatUp {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-50px); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="big-number" id="number">0</div>
+  <div class="per-sec"><span id="perSec">0</span>/초 <span class="mult" id="prestigeMult"></span></div>
+
+  <button id="clickBtn">+ <span id="clickPower">1</span></button>
+
+  <h2>생산기</h2>
+  <div id="generators"></div>
+
+  <h2>업그레이드</h2>
+  <div id="upgrades"></div>
+
+  <div id="prestigePanel" class="hidden">
+    <p>환생: 전부 리셋. 대신 <span class="gold">별</span> 획득 — 별 1개당 생산 <span class="gold">+10%</span> 영구 배율.</p>
+    <p>지금 환생하면: <span class="gold" id="prestigeGain">0</span>개 별 (보유: <span class="gold" id="starsOwned">0</span>)</p>
+    <button id="prestigeBtn">✨ 환생</button>
+  </div>
+
+  <div class="footer">
+    자동 저장됨 · <button id="exportBtn">내보내기</button><button id="resetBtn">전체 초기화</button>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+// ---------- 데이터 정의 ----------
+const GENS = [
+  { name: '계산기',   base: 15,        rate: 0.5,   growth: 1.13 },
+  { name: '주판 로봇', base: 120,       rate: 4,     growth: 1.14 },
+  { name: '숫자 농장', base: 1.4e3,     rate: 30,    growth: 1.15 },
+  { name: '수학 공장', base: 1.8e4,     rate: 220,   growth: 1.16 },
+  { name: '양자 연산소', base: 2.5e5,   rate: 1.7e3, growth: 1.17 },
+  { name: '무한 엔진',  base: 4e6,      rate: 1.4e4, growth: 1.18 },
+  { name: '차원 절단기', base: 7e7,     rate: 1.2e5, growth: 1.19 },
+  { name: '우주 압축기', base: 1.2e9,   rate: 1.1e6, growth: 1.20 },
+];
+
+const UPGS = [
+  { name: '튼튼한 손가락', desc: '클릭 파워 x2', cost: 100,   type: 'click', mult: 2 },
+  { name: '계산기 오버클럭', desc: '계산기 생산 x2', cost: 500,  type: 'gen', gen: 0, mult: 2 },
+  { name: '에너지 드링크', desc: '클릭 파워 x3', cost: 5e3,   type: 'click', mult: 3 },
+  { name: '로봇 기름칠', desc: '주판 로봇 생산 x2', cost: 1e4, type: 'gen', gen: 1, mult: 2 },
+  { name: '비료 살포', desc: '숫자 농장 생산 x2', cost: 8e4,  type: 'gen', gen: 2, mult: 2 },
+  { name: '전체 시너지 I', desc: '모든 생산 x2', cost: 5e5,   type: 'all', mult: 2 },
+  { name: '기계 손가락', desc: '클릭 = 초당 생산의 5% 추가', cost: 2e6, type: 'clickSynergy', pct: 0.05 },
+  { name: '공장 자동화', desc: '수학 공장 생산 x3', cost: 8e6, type: 'gen', gen: 3, mult: 3 },
+  { name: '양자 얽힘', desc: '양자 연산소 생산 x3', cost: 1e8, type: 'gen', gen: 4, mult: 3 },
+  { name: '전체 시너지 II', desc: '모든 생산 x3', cost: 1e9,  type: 'all', mult: 3 },
+  { name: '엔진 과부하', desc: '무한 엔진 생산 x3', cost: 2e10, type: 'gen', gen: 5, mult: 3 },
+  { name: '전체 시너지 III', desc: '모든 생산 x4', cost: 1e12, type: 'all', mult: 4 },
+];
+
+const PRESTIGE_REQ = 1e9; // 환생 최소 수치
+
+// ---------- 상태 ----------
+let S = {
+  num: 0,
+  total: 0,          // 이번 환생 누적 (환생 별 계산용)
+  clicks: 0,
+  gens: GENS.map(() => 0),
+  upgs: UPGS.map(() => false),
+  stars: 0,
+  lastTick: Date.now(),
+};
+
+// ---------- 숫자 포맷 ----------
+const UNITS = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
+function fmt(n) {
+  if (n < 10) return (Math.floor(n * 10) / 10).toString();
+  if (n < 1e3) return Math.floor(n).toString();
+  const tier = Math.min(Math.floor(Math.log10(n) / 3), UNITS.length - 1);
+  const scaled = n / Math.pow(10, tier * 3);
+  if (tier >= UNITS.length - 1 && scaled >= 1e3) return n.toExponential(2).replace('+', '');
+  return scaled.toFixed(scaled < 10 ? 2 : scaled < 100 ? 1 : 0) + UNITS[tier];
+}
+
+// ---------- 계산 ----------
+function prestigeMult() { return 1 + S.stars * 0.1; }
+
+function genMult(i) {
+  let m = 1;
+  for (let u = 0; u < UPGS.length; u++) {
+    if (!S.upgs[u]) continue;
+    const up = UPGS[u];
+    if (up.type === 'gen' && up.gen === i) m *= up.mult;
+    if (up.type === 'all') m *= up.mult;
+  }
+  return m;
+}
+
+function perSec() {
+  let total = 0;
+  for (let i = 0; i < GENS.length; i++) {
+    total += S.gens[i] * GENS[i].rate * genMult(i);
+  }
+  return total * prestigeMult();
+}
+
+function clickPower() {
+  let p = 1;
+  for (let u = 0; u < UPGS.length; u++) {
+    if (!S.upgs[u]) continue;
+    const up = UPGS[u];
+    if (up.type === 'click') p *= up.mult;
+    if (up.type === 'clickSynergy') p += perSec() * up.pct;
+  }
+  return p * prestigeMult();
+}
+
+function genCost(i) {
+  return GENS[i].base * Math.pow(GENS[i].growth, S.gens[i]);
+}
+
+function prestigeGain() {
+  if (S.total < PRESTIGE_REQ) return 0;
+  return Math.floor(Math.pow(S.total / PRESTIGE_REQ, 0.5));
+}
+
+function gain(amount) {
+  S.num += amount;
+  S.total += amount;
+}
+
+// ---------- DOM 구축 ----------
+const $ = id => document.getElementById(id);
+const genEls = [], upgEls = [];
+
+GENS.forEach((g, i) => {
+  const el = document.createElement('div');
+  el.className = 'gen';
+  el.innerHTML = `
+    <div class="gen-info">
+      <div class="name">${g.name}</div>
+      <div class="detail"></div>
+    </div>
+    <div class="gen-buy">
+      <div class="cost"></div>
+      <div class="owned"></div>
+    </div>`;
+  el.onclick = () => buyGen(i);
+  $('generators').appendChild(el);
+  genEls.push({
+    root: el,
+    detail: el.querySelector('.detail'),
+    cost: el.querySelector('.cost'),
+    owned: el.querySelector('.owned'),
+  });
+});
+
+UPGS.forEach((u, i) => {
+  const el = document.createElement('div');
+  el.className = 'upg';
+  el.innerHTML = `
+    <div class="gen-info">
+      <div class="name">${u.name}</div>
+      <div class="detail">${u.desc}</div>
+    </div>
+    <div class="gen-buy"><div class="cost">${fmt(u.cost)}</div></div>`;
+  el.onclick = () => buyUpg(i);
+  $('upgrades').appendChild(el);
+  upgEls.push(el);
+});
+
+// ---------- 액션 ----------
+function buyGen(i) {
+  const cost = genCost(i);
+  if (S.num < cost) return;
+  S.num -= cost;
+  S.gens[i]++;
+  render();
+}
+
+function buyUpg(i) {
+  if (S.upgs[i] || S.num < UPGS[i].cost) return;
+  S.num -= UPGS[i].cost;
+  S.upgs[i] = true;
+  render();
+}
+
+$('clickBtn').onclick = (e) => {
+  const p = clickPower();
+  gain(p);
+  S.clicks++;
+  // 떠오르는 숫자 이펙트
+  const f = document.createElement('div');
+  f.className = 'float-num';
+  f.textContent = '+' + fmt(p);
+  f.style.left = (e.clientX + (Math.random() * 40 - 20)) + 'px';
+  f.style.top = (e.clientY - 20) + 'px';
+  document.body.appendChild(f);
+  setTimeout(() => f.remove(), 800);
+  render();
+};
+
+$('prestigeBtn').onclick = () => {
+  const g = prestigeGain();
+  if (g < 1) return;
+  if (!confirm(`환생: 별 ${g}개 획득, 나머지 전부 리셋. 진행?`)) return;
+  S.stars += g;
+  S.num = 0; S.total = 0;
+  S.gens = GENS.map(() => 0);
+  S.upgs = UPGS.map(() => false);
+  save();
+  render();
+  toast(`✨ 환생! 별 +${g} (생산 배율 x${prestigeMult().toFixed(1)})`);
+};
+
+$('resetBtn').onclick = () => {
+  if (!confirm('전체 초기화 (별 포함 전부 삭제). 진짜 진행?')) return;
+  localStorage.removeItem('numgame');
+  location.reload();
+};
+
+$('exportBtn').onclick = () => {
+  navigator.clipboard.writeText(btoa(JSON.stringify(S)))
+    .then(() => toast('세이브 클립보드 복사됨'));
+};
+
+// ---------- 렌더 ----------
+// 티어별 색상 (숫자 커질수록 강렬)
+const TIER_COLORS = [
+  '#e6edf3', // < 1K   흰색
+  '#58a6ff', // K      파랑
+  '#3fb950', // M      초록
+  '#e3b341', // B      금색
+  '#f0883e', // T      주황
+  '#f85149', // Qa     빨강
+  '#ff5cd0', // Qi     핑크
+  '#bc8cff', // Sx     보라
+  '#79f2e6', // Sp+    청록 (네온)
+];
+
+function applyTierStyle() {
+  const el = $('number');
+  const tier = S.num < 1e3 ? 0 : Math.min(Math.floor(Math.log10(S.num) / 3), TIER_COLORS.length - 1);
+  el.style.setProperty('--tier-color', TIER_COLORS[tier]);
+  el.style.setProperty('--tier-glow', (8 + tier * 6) + 'px');
+  el.classList.toggle('pulse', tier >= 5);
+}
+
+function render() {
+  $('number').textContent = fmt(S.num);
+  applyTierStyle();
+  $('perSec').textContent = fmt(perSec());
+  $('clickPower').textContent = fmt(clickPower());
+  $('prestigeMult').textContent = S.stars > 0 ? `(x${prestigeMult().toFixed(1)})` : '';
+
+  GENS.forEach((g, i) => {
+    const e = genEls[i];
+    // 잠금: 이전 생산기 1개 이상 보유하거나 비용 절반 도달 시 공개
+    const visible = i === 0 || S.gens[i - 1] > 0 || S.total >= g.base * 0.5;
+    e.root.classList.toggle('hidden', !visible);
+    if (!visible) return;
+    const cost = genCost(i);
+    e.root.classList.toggle('locked', S.num < cost);
+    e.detail.textContent = `+${fmt(g.rate * genMult(i) * prestigeMult())}/초`;
+    e.cost.textContent = fmt(cost);
+    e.owned.textContent = S.gens[i] + '개';
+  });
+
+  UPGS.forEach((u, i) => {
+    const el = upgEls[i];
+    const visible = S.upgs[i] || S.total >= u.cost * 0.3;
+    el.classList.toggle('hidden', !visible);
+    if (!visible) return;
+    el.classList.toggle('bought', S.upgs[i]);
+    el.classList.toggle('locked', !S.upgs[i] && S.num < u.cost);
+  });
+
+  const showPrestige = S.total >= PRESTIGE_REQ * 0.1 || S.stars > 0;
+  $('prestigePanel').classList.toggle('hidden', !showPrestige);
+  if (showPrestige) {
+    const g = prestigeGain();
+    $('prestigeGain').textContent = g;
+    $('starsOwned').textContent = S.stars;
+    $('prestigeBtn').disabled = g < 1;
+  }
+}
+
+// ---------- 루프 & 저장 ----------
+function tick() {
+  const now = Date.now();
+  const dt = (now - S.lastTick) / 1000;
+  S.lastTick = now;
+  gain(perSec() * Math.min(dt, 60 * 60 * 12)); // 오프라인 최대 12시간
+  render();
+}
+
+function save() {
+  S.lastTick = Date.now();
+  localStorage.setItem('numgame', JSON.stringify(S));
+}
+
+function load() {
+  const raw = localStorage.getItem('numgame');
+  if (!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    S = { ...S, ...d };
+    // 배열 길이 보정 (버전업 대비)
+    while (S.gens.length < GENS.length) S.gens.push(0);
+    while (S.upgs.length < UPGS.length) S.upgs.push(false);
+    // 오프라인 수익
+    const away = (Date.now() - S.lastTick) / 1000;
+    if (away > 10) {
+      const earned = perSec() * Math.min(away, 60 * 60 * 12);
+      if (earned > 0) {
+        gain(earned);
+        toast(`오프라인 수익: +${fmt(earned)} (${Math.floor(away / 60)}분)`);
+      }
+    }
+    S.lastTick = Date.now();
+  } catch (e) { console.error('세이브 로드 실패', e); }
+}
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+load();
+render();
+setInterval(tick, 100);
+setInterval(save, 5000);
+window.addEventListener('beforeunload', save);
+</script>
+</body>
+</html>
