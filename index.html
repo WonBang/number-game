@@ -186,9 +186,23 @@
   <div id="upgrades"></div>
 
   <div id="prestigePanel" class="hidden">
-    <p>환생: 전부 리셋. 대신 <span class="gold">별</span> 획득 — 별 1개당 생산 <span class="gold">+10%</span> 영구 배율.</p>
-    <p>지금 환생하면: <span class="gold" id="prestigeGain">0</span>개 별 (보유: <span class="gold" id="starsOwned">0</span>)</p>
+    <p>환생: 전부 리셋. 대신 <span class="gold">별</span> 획득 — 누적 별 1개당 생산 <span class="gold">+10%</span> 영구 배율. 보유 별은 상점 화폐 (써도 배율 유지).</p>
+    <p>지금 환생하면: <span class="gold" id="prestigeGain">0</span>개 별 (보유: <span class="gold" id="starsOwned">0</span> / 누적: <span class="gold" id="starsTotal">0</span>)</p>
     <button id="prestigeBtn">✨ 환생</button>
+  </div>
+
+  <div id="starShop" class="hidden">
+    <h2>⭐ 별 상점</h2>
+    <div class="gen" id="autoClickItem">
+      <div class="gen-info">
+        <div class="name">🤖 자동 클리커</div>
+        <div class="detail" id="autoClickDetail"></div>
+      </div>
+      <div class="gen-buy">
+        <div class="cost" id="autoClickCost"></div>
+        <div class="owned" id="autoClickLv"></div>
+      </div>
+    </div>
   </div>
 
   <div class="footer">
@@ -238,7 +252,9 @@ let S = {
   clicks: 0,
   gens: GENS.map(() => 0),
   upgs: UPGS.map(() => false),
-  stars: 0,
+  stars: 0,       // 보유 별 (상점 화폐)
+  totalStars: 0,  // 누적 별 (배율)
+  autoClick: 0,   // 자동 클리커 레벨
   lastTick: Date.now(),
 };
 
@@ -248,7 +264,10 @@ function fmt(n) {
 }
 
 // ---------- 계산 ----------
-function prestigeMult() { return 1 + S.stars * 0.1; }
+function prestigeMult() { return 1 + S.totalStars * 0.1; }
+
+const AUTO_MAX = 8;
+function autoClickCost() { return Math.pow(2, S.autoClick); }
 
 function genMult(i) {
   let m = 1;
@@ -370,12 +389,22 @@ $('prestigeBtn').onclick = () => {
   if (g < 1) return;
   if (!confirm(`환생: 별 ${g}개 획득, 나머지 전부 리셋. 진행?`)) return;
   S.stars += g;
+  S.totalStars += g;
   S.num = 0; S.total = 0;
   S.gens = GENS.map(() => 0);
   S.upgs = UPGS.map(() => false);
   save();
   render();
   toast(`✨ 환생! 별 +${g} (생산 배율 x${prestigeMult().toFixed(1)})`);
+};
+
+$('autoClickItem').onclick = () => {
+  if (S.autoClick >= AUTO_MAX || S.stars < autoClickCost()) return;
+  S.stars -= autoClickCost();
+  S.autoClick++;
+  save();
+  render();
+  toast(`🤖 자동 클리커 Lv.${S.autoClick} — 초당 ${S.autoClick}회 자동 클릭`);
 };
 
 $('resetBtn').onclick = () => {
@@ -418,13 +447,25 @@ function render() {
     el.classList.toggle('locked', !S.upgs[i] && S.num < u.cost);
   });
 
-  const showPrestige = S.total >= PRESTIGE_REQ * 0.1 || S.stars > 0;
+  const showPrestige = S.total >= PRESTIGE_REQ * 0.1 || S.totalStars > 0;
   $('prestigePanel').classList.toggle('hidden', !showPrestige);
   if (showPrestige) {
     const g = prestigeGain();
     $('prestigeGain').textContent = g;
     $('starsOwned').textContent = S.stars;
+    $('starsTotal').textContent = S.totalStars;
     $('prestigeBtn').disabled = g < 1;
+  }
+
+  $('starShop').classList.toggle('hidden', S.totalStars < 1);
+  if (S.totalStars >= 1) {
+    const maxed = S.autoClick >= AUTO_MAX;
+    $('autoClickDetail').textContent = maxed
+      ? `초당 ${S.autoClick}회 자동 클릭 (최대)`
+      : `초당 자동 클릭 +1 (현재 ${S.autoClick}회/초)`;
+    $('autoClickCost').textContent = maxed ? 'MAX' : `⭐ ${autoClickCost()}`;
+    $('autoClickLv').textContent = `Lv.${S.autoClick}`;
+    $('autoClickItem').classList.toggle('locked', !maxed && S.stars < autoClickCost());
   }
 }
 
@@ -433,7 +474,9 @@ function tick() {
   const now = Date.now();
   const dt = (now - S.lastTick) / 1000;
   S.lastTick = now;
-  gain(perSec() * Math.min(dt, 60 * 60 * 12)); // 오프라인 최대 12시간
+  const capped = Math.min(dt, 60 * 60 * 12); // 오프라인 최대 12시간
+  gain(perSec() * capped);
+  if (S.autoClick > 0) gain(clickPower() * S.autoClick * capped);
   render();
 }
 
@@ -451,10 +494,13 @@ function load() {
     // 배열 길이 보정 (버전업 대비)
     while (S.gens.length < GENS.length) S.gens.push(0);
     while (S.upgs.length < UPGS.length) S.upgs.push(false);
+    // 구버전 세이브: totalStars 없으면 보유 별로 보정
+    if (d.totalStars === undefined) S.totalStars = S.stars;
+    if (d.autoClick === undefined) S.autoClick = 0;
     // 오프라인 수익
     const away = (Date.now() - S.lastTick) / 1000;
     if (away > 10) {
-      const earned = perSec() * Math.min(away, 60 * 60 * 12);
+      const earned = (perSec() + clickPower() * S.autoClick) * Math.min(away, 60 * 60 * 12);
       if (earned > 0) {
         gain(earned);
         toast(`오프라인 수익: +${fmt(earned)} (${Math.floor(away / 60)}분)`);
